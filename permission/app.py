@@ -5,8 +5,8 @@ import aws_cdk as cdk
 
 from permission.permission_stack import PermissionStack
 
-
 app = cdk.App()
+
 PermissionStack(
     app, 'PermissionStack',
     env = cdk.Environment(
