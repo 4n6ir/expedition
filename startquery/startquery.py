@@ -19,7 +19,8 @@ def handler(event, context):
     ### TEMP ###
     
     event = {}
-    event['query'] = "SELECT eventSource, eventName, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' GROUP BY eventSource, eventName"
+    event['query'] = "SELECT eventSource, eventName, recipientAccountId, awsRegion, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' GROUP BY eventSource, eventName, recipientAccountId, awsRegion"
+    event['table'] = "ActionIndex"
     
     ### ORGANIZATION ###
     
@@ -38,7 +39,7 @@ def handler(event, context):
     assumed_role = sts_client.assume_role(
         RoleArn = authorize['role'],
         RoleSessionName = 'expedition',
-        DurationSeconds = 1800,
+        DurationSeconds = 900,
         ExternalId = authorize['extid']
     )
 
@@ -46,7 +47,7 @@ def handler(event, context):
         'cloudtrail',
         aws_access_key_id = assumed_role['Credentials']['AccessKeyId'],
         aws_secret_access_key = assumed_role['Credentials']['SecretAccessKey'],
-        aws_session_token = assumed_role['Credentials']['SessionToken'],
+        aws_session_token = assumed_role['Credentials']['SessionToken']
     )
 
     ### DATASTORE ###
@@ -108,7 +109,31 @@ def handler(event, context):
         print(result)
 
         if result['QueryStatus'] == 'FINISHED':
-            print('COMPLETED!!')
+
+            ssm_client = boto3.client('ssm')
+            
+            response = ssm_client.get_parameter(
+                Name = os.environ['STATE']
+            )
+            step = response['Parameter']['Value']
+    
+            batch = {}
+            batch['Data'] = expedition
+            batch['ExtId'] = authorize['extid']
+            batch['Query'] = queryid['QueryId']
+            batch['Role'] = authorize['role']
+            batch['State'] = 'START'
+            batch['Step'] = step
+            batch['Table'] = event['table']
+            batch['Time'] = end
+            batch['Transitions'] = 0
+
+            sfn_client = boto3.client('stepfunctions')
+
+            sfn_client.start_execution(
+                stateMachineArn = step,
+                input = json.dumps(batch)
+            )
 
     return {
         'statusCode': 200,
