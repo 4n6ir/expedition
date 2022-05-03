@@ -7,6 +7,7 @@ def handler(event, context):
     extid = event['event']['ExtId']
     query = event['event']['Query']
     role = event['event']['Role']
+    sort = event['event']['Sort']
     state = event['event']['State']
     step = event['event']['Step']
     table = event['event']['Table']
@@ -39,21 +40,21 @@ def handler(event, context):
             EventDataStore = data,
             QueryId = query
         )
-
         for item in result['QueryResultRows']:
-            if table == 'ActionIndex': 
-                parse = item['eventSource'].split('.')
-                pk = parse[0]+':'+item['eventName']
+            if table == 'ActionIndex':
+                parse = item[0]['eventSource'].split('.')
+                name = parse[0]+':'+item[1]['eventName']
                 action = {}
-                action['pk'] = pk
-                action['sk'] = time
-                action['account'] = item['recipientAccountId']
-                action['region'] = item['awsRegion']
-                action['count'] = item['apiCount']
+                action['pk'] = 'ACTION'
+                action['sk'] = 'AWS#'+sort+'#'+name
+                action['action'] = name
+                action['account'] = item[2]['recipientAccountId']
+                action['region'] = item[3]['awsRegion']
+                action['count'] = item[4]['apiCount']
+                action['time'] = time
                 database.put_item(
-                    Item = json.dumps(action)
+                    Item = action
                 )
-
         try:
             state = result['NextToken']
             status = 'CONTINUE'
@@ -67,21 +68,21 @@ def handler(event, context):
             QueryId = query,
             NextToken = state
         )
-
         for item in result['QueryResultRows']:
-            if table == 'ActionIndex': 
-                parse = item['eventSource'].split('.')
-                pk = parse[0]+':'+item['eventName']
+            if table == 'ActionIndex':
+                parse = item[0]['eventSource'].split('.')
+                name = parse[0]+':'+item[1]['eventName']
                 action = {}
-                action['pk'] = pk
-                action['sk'] = str(time)
-                action['account'] = item['recipientAccountId']
-                action['region'] = item['awsRegion']
-                action['count'] = item['apiCount']
+                action['pk'] = 'ACTION'
+                action['sk'] = 'AWS#'+sort+'#'+name
+                action['action'] = name
+                action['account'] = item[2]['recipientAccountId']
+                action['region'] = item[3]['awsRegion']
+                action['count'] = item[4]['apiCount']
+                action['time'] = time
                 database.put_item(
-                    Item = json.dumps(action)
+                    Item = action
                 )
-
         try:
             state = result['NextToken']
             status = 'CONTINUE'
@@ -102,6 +103,7 @@ def handler(event, context):
     event['ExtId'] = extid
     event['Query'] = query
     event['Role'] = role
+    event['Sort'] = sort
     event['State'] = state
     event['Step'] = step
     event['Table'] = table
@@ -118,7 +120,7 @@ def handler(event, context):
         )
 
         status = 'SUCCEEDED'
-    
+
     return {
         'event': event,
         'status': status,

@@ -76,6 +76,7 @@ def handler(event, context):
         final = now - datetime.timedelta(hours=1)
         start = final.strftime('%Y-%m-%d %H:00:00')
         end = now.strftime("%Y-%m-%d %H:00:00")
+        sort = final.strftime("%Y#%m#%d#%H")
 
         ### BUILDING ###
         
@@ -122,10 +123,11 @@ def handler(event, context):
             batch['ExtId'] = authorize['extid']
             batch['Query'] = queryid['QueryId']
             batch['Role'] = authorize['role']
+            batch['Sort'] = sort
             batch['State'] = 'START'
             batch['Step'] = step
             batch['Table'] = event['table']
-            batch['Time'] = end
+            batch['Time'] = start
             batch['Transitions'] = 0
 
             sfn_client = boto3.client('stepfunctions')

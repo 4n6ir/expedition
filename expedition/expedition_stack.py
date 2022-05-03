@@ -43,6 +43,12 @@ class ExpeditionStack(Stack):
             )
         )
 
+        role.add_managed_policy(
+            _iam.ManagedPolicy.from_aws_managed_policy_name(
+                'service-role/AWSLambdaBasicExecutionRole'
+            )
+        )
+
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions = [
