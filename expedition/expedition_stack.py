@@ -8,6 +8,7 @@ from aws_cdk import (
     aws_iam as _iam,
     aws_lambda as _lambda,
     aws_logs as _logs,
+    aws_s3 as _s3,
     aws_ssm as _ssm,
     aws_stepfunctions as _sfn,
     aws_stepfunctions_tasks as _tasks
@@ -20,7 +21,24 @@ class ExpeditionStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
+        account = Stack.of(self).account
         region = Stack.of(self).region
+        bucket_name = 'expedition-'+account+'-'+region
+
+        bucket = _s3.Bucket(
+            self, 'bucket',
+            bucket_name = bucket_name,
+            encryption = _s3.BucketEncryption.KMS_MANAGED,
+            block_public_access = _s3.BlockPublicAccess.BLOCK_ALL,
+            removal_policy = RemovalPolicy.DESTROY,
+            auto_delete_objects = True,
+            versioned = True
+        )
+    
+        bucket.add_lifecycle_rule(
+            expiration = Duration.days(1),
+            noncurrent_version_expiration = Duration.days(1)
+        )
 
         actionindex = _dynamodb.Table(
             self, 'actionindex',
