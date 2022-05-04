@@ -16,12 +16,6 @@ def authorization(mgmtacct):
 
 def handler(event, context):
 
-    ### TEMP ###
-    
-    event = {}
-    event['query'] = "SELECT eventSource, eventName, recipientAccountId, awsRegion, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' GROUP BY eventSource, eventName, recipientAccountId, awsRegion"
-    event['table'] = "ActionIndex"
-    
     ### ORGANIZATION ###
     
     organizations_client = boto3.client('organizations')

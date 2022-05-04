@@ -3,6 +3,8 @@ from aws_cdk import (
     RemovalPolicy,
     Stack,
     aws_dynamodb as _dynamodb,
+    aws_events as _events,
+    aws_events_targets as _targets,
     aws_iam as _iam,
     aws_lambda as _lambda,
     aws_logs as _logs,
@@ -238,4 +240,27 @@ class ExpeditionStack(Stack):
             parameter_name = '/expedition/state',
             string_value = state.state_machine_arn,
             tier = _ssm.ParameterTier.STANDARD
+        )
+
+        actionevent = _events.Rule(
+            self, 'actionevent',
+            schedule = _events.Schedule.cron(
+                minute = '1',
+                hour = '*',
+                month = '*',
+                week_day = '*',
+                year = '*'
+            )
+        )
+        
+        actionevent.add_target(
+            _targets.LambdaFunction(
+                startquery,
+                event = _events.RuleTargetInput.from_object(
+                    {
+                        "query": "SELECT eventSource, eventName, recipientAccountId, awsRegion, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' GROUP BY eventSource, eventName, recipientAccountId, awsRegion",
+                        "table": "ActionIndex"
+                    }
+                )
+            )
         )
