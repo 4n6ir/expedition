@@ -1,6 +1,26 @@
 import boto3
 import json
 
+def actions(item, sort, table, time):
+    
+    parse = item[0]['eventSource'].split('.')
+    name = parse[0]+':'+item[1]['eventName']
+    action = {}
+    action['pk'] = 'ACTION'
+    action['sk'] = 'AWS#'+sort+'#'+name
+    action['action'] = name
+    action['account'] = item[2]['recipientAccountId']
+    action['region'] = item[3]['awsRegion']
+    action['count'] = item[4]['apiCount']
+    action['time'] = time
+    
+    dynamodb = boto3.resource('dynamodb')
+    database = dynamodb.Table(table)
+    
+    database.put_item(
+        Item = action
+    )
+
 def handler(event, context):
 
     data = event['event']['Data']
@@ -32,9 +52,6 @@ def handler(event, context):
         aws_session_token = assumed_role['Credentials']['SessionToken']
     )
 
-    dynamodb = boto3.resource('dynamodb')
-    database = dynamodb.Table(table)
-
     if state == 'START':
         result = cloudtrail_client.get_query_results(
             EventDataStore = data,
@@ -42,19 +59,7 @@ def handler(event, context):
         )
         for item in result['QueryResultRows']:
             if table == 'ActionIndex':
-                parse = item[0]['eventSource'].split('.')
-                name = parse[0]+':'+item[1]['eventName']
-                action = {}
-                action['pk'] = 'ACTION'
-                action['sk'] = 'AWS#'+sort+'#'+name
-                action['action'] = name
-                action['account'] = item[2]['recipientAccountId']
-                action['region'] = item[3]['awsRegion']
-                action['count'] = item[4]['apiCount']
-                action['time'] = time
-                database.put_item(
-                    Item = action
-                )
+                actions(item, sort, table, time)
         try:
             state = result['NextToken']
             status = 'CONTINUE'
@@ -70,19 +75,7 @@ def handler(event, context):
         )
         for item in result['QueryResultRows']:
             if table == 'ActionIndex':
-                parse = item[0]['eventSource'].split('.')
-                name = parse[0]+':'+item[1]['eventName']
-                action = {}
-                action['pk'] = 'ACTION'
-                action['sk'] = 'AWS#'+sort+'#'+name
-                action['action'] = name
-                action['account'] = item[2]['recipientAccountId']
-                action['region'] = item[3]['awsRegion']
-                action['count'] = item[4]['apiCount']
-                action['time'] = time
-                database.put_item(
-                    Item = action
-                )
+                actions(item, sort, table, time)
         try:
             state = result['NextToken']
             status = 'CONTINUE'
