@@ -11,6 +11,7 @@ from aws_cdk import (
     aws_iam as _iam,
     aws_lambda as _lambda,
     aws_logs as _logs,
+    aws_logs_destinations as _destinations,
     aws_s3 as _s3,
     aws_sns as _sns,
     aws_sns_subscriptions as _subs,
@@ -101,6 +102,22 @@ class ExpeditionStack(Stack):
             point_in_time_recovery = True
         )
 
+        alarmindex = _dynamodb.Table(
+            self, 'alarmindex',
+            table_name = 'AlarmIndex',
+            partition_key = {
+                'name': 'pk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            sort_key = {
+                'name': 'sk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            billing_mode = _dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy = RemovalPolicy.DESTROY,
+            point_in_time_recovery = True
+        )
+
         role = _iam.Role(
             self, 'role',
             assumed_by = _iam.ServicePrincipal(
@@ -120,7 +137,8 @@ class ExpeditionStack(Stack):
                     'dynamodb:PutItem'
                 ],
                 resources = [
-                    actionindex.table_arn
+                    actionindex.table_arn,
+                    alarmindex.table_arn
                 ]
             )
         )
@@ -191,6 +209,40 @@ class ExpeditionStack(Stack):
             )
         )
 
+        role.add_to_policy(
+            _iam.PolicyStatement(
+                actions = [
+                    'sns:Publish'
+                ],
+                resources = [
+                    billingtopic.topic_arn,
+                    operationstopic.topic_arn,
+                    securitytopic.topic_arn
+                ]
+            )
+        )
+
+        error = _lambda.Function(
+            self, 'error',
+            runtime = _lambda.Runtime.PYTHON_3_9,
+            code = _lambda.Code.from_asset('error'),
+            handler = 'error.handler',
+            role = role,
+            environment = dict(
+                SNS_TOPIC = operationstopic.topic_arn
+            ),
+            architecture = _lambda.Architecture.ARM_64,
+            timeout = Duration.seconds(3),
+            memory_size = 128
+        )
+
+        errormonitor = _logs.LogGroup(
+            self, 'errormonitor',
+            log_group_name = '/aws/lambda/'+error.function_name,
+            retention = _logs.RetentionDays.ONE_DAY,
+            removal_policy = RemovalPolicy.DESTROY
+        )
+
         startquery = _lambda.Function(
             self, 'startquery',
             runtime = _lambda.Runtime.PYTHON_3_9,
@@ -213,6 +265,13 @@ class ExpeditionStack(Stack):
             removal_policy = RemovalPolicy.DESTROY
         )
 
+        startquerysub = _logs.SubscriptionFilter(
+            self, 'startquerysub',
+            log_group = startquerylogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
         passthru = _lambda.Function(
             self, 'passthru',
             runtime = _lambda.Runtime.PYTHON_3_9,
@@ -231,6 +290,13 @@ class ExpeditionStack(Stack):
             removal_policy = RemovalPolicy.DESTROY
         )
 
+        passthrusub = _logs.SubscriptionFilter(
+            self, 'passthrusub',
+            log_group = passthrulogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
         batchwriter = _lambda.Function(
             self, 'batchwriter',
             runtime = _lambda.Runtime.PYTHON_3_9,
@@ -247,6 +313,13 @@ class ExpeditionStack(Stack):
             log_group_name = '/aws/lambda/'+batchwriter.function_name,
             retention = _logs.RetentionDays.ONE_DAY,
             removal_policy = RemovalPolicy.DESTROY
+        )
+
+        batchwritersub = _logs.SubscriptionFilter(
+            self, 'batchwritersub',
+            log_group = batchwriterlogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
         )
 
         initial = _tasks.LambdaInvoke(
