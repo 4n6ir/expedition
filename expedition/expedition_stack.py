@@ -1,3 +1,6 @@
+import boto3
+import sys
+
 from aws_cdk import (
     Duration,
     RemovalPolicy,
@@ -9,6 +12,8 @@ from aws_cdk import (
     aws_lambda as _lambda,
     aws_logs as _logs,
     aws_s3 as _s3,
+    aws_sns as _sns,
+    aws_sns_subscriptions as _subs,
     aws_ssm as _ssm,
     aws_stepfunctions as _sfn,
     aws_stepfunctions_tasks as _tasks
@@ -24,6 +29,46 @@ class ExpeditionStack(Stack):
         account = Stack.of(self).account
         region = Stack.of(self).region
         bucket_name = 'expedition-'+account+'-'+region
+
+        try:
+            client = boto3.client('account')
+            billing = client.get_alternate_contact(
+                AlternateContactType='BILLING'
+            )
+            operations = client.get_alternate_contact(
+                AlternateContactType='OPERATIONS'
+            )
+            security = client.get_alternate_contact(
+                AlternateContactType='SECURITY'
+            )
+        except:
+            print('Missing IAM Permission --> account:GetAlternateContact')
+            sys.exit(1)
+            pass
+
+        billingtopic = _sns.Topic(
+            self, 'billingtopic'
+        )
+
+        billingtopic.add_subscription(
+            _subs.EmailSubscription(billing['AlternateContact']['EmailAddress'])
+        )
+
+        operationstopic = _sns.Topic(
+            self, 'operationstopic'
+        )
+
+        operationstopic.add_subscription(
+            _subs.EmailSubscription(operations['AlternateContact']['EmailAddress'])
+        )
+
+        securitytopic = _sns.Topic(
+            self, 'securitytopic'
+        )
+
+        securitytopic.add_subscription(
+            _subs.EmailSubscription(security['AlternateContact']['EmailAddress'])
+        )
 
         bucket = _s3.Bucket(
             self, 'bucket',
