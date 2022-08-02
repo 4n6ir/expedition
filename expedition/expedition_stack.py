@@ -102,22 +102,6 @@ class ExpeditionStack(Stack):
             point_in_time_recovery = True
         )
 
-        alarmindex = _dynamodb.Table(
-            self, 'alarmindex',
-            table_name = 'AlarmIndex',
-            partition_key = {
-                'name': 'pk',
-                'type': _dynamodb.AttributeType.STRING
-            },
-            sort_key = {
-                'name': 'sk',
-                'type': _dynamodb.AttributeType.STRING
-            },
-            billing_mode = _dynamodb.BillingMode.PAY_PER_REQUEST,
-            removal_policy = RemovalPolicy.DESTROY,
-            point_in_time_recovery = True
-        )
-
         role = _iam.Role(
             self, 'role',
             assumed_by = _iam.ServicePrincipal(
@@ -137,8 +121,7 @@ class ExpeditionStack(Stack):
                     'dynamodb:PutItem'
                 ],
                 resources = [
-                    actionindex.table_arn,
-                    alarmindex.table_arn
+                    actionindex.table_arn
                 ]
             )
         )
