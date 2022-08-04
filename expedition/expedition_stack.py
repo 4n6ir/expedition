@@ -102,6 +102,48 @@ class ExpeditionStack(Stack):
             point_in_time_recovery = True
         )
 
+        actionindex.add_global_secondary_index(
+            index_name = 'actions',
+            partition_key = {
+                'name': 'action',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            sort_key = {
+                'name': 'sk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            projection_type = _dynamodb.ProjectionType.ALL
+        )
+
+        errorindex = _dynamodb.Table(
+            self, 'errorindex',
+            table_name = 'ErrorIndex',
+            partition_key = {
+                'name': 'pk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            sort_key = {
+                'name': 'sk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            billing_mode = _dynamodb.BillingMode.PAY_PER_REQUEST,
+            removal_policy = RemovalPolicy.DESTROY,
+            point_in_time_recovery = True
+        )
+
+        errorindex.add_global_secondary_index(
+            index_name = 'errors',
+            partition_key = {
+                'name': 'action',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            sort_key = {
+                'name': 'sk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            projection_type = _dynamodb.ProjectionType.ALL
+        )
+
         role = _iam.Role(
             self, 'role',
             assumed_by = _iam.ServicePrincipal(
@@ -121,7 +163,8 @@ class ExpeditionStack(Stack):
                     'dynamodb:PutItem'
                 ],
                 resources = [
-                    actionindex.table_arn
+                    actionindex.table_arn,
+                    errorindex.table_arn
                 ]
             )
         )
