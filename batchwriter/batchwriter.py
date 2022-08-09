@@ -58,7 +58,7 @@ def handler(event, context):
             QueryId = query
         )
         for item in result['QueryResultRows']:
-            if table == 'ActionIndex':
+            if table == 'ActionIndex' or table == 'ErrorIndex':
                 actions(item, sort, table, time)
         try:
             state = result['NextToken']
@@ -74,7 +74,7 @@ def handler(event, context):
             NextToken = state
         )
         for item in result['QueryResultRows']:
-            if table == 'ActionIndex':
+            if table == 'ActionIndex' or table == 'ErrorIndex':
                 actions(item, sort, table, time)
         try:
             state = result['NextToken']
