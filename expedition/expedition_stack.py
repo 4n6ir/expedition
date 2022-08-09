@@ -295,7 +295,10 @@ class ExpeditionStack(Stack):
             self, 'startquerysub',
             log_group = startquerylogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+            filter_pattern = _logs.FilterPattern.any_term_group(
+                ['ERROR'],
+                ['Task','timed','out']
+            )
         )
 
         passthru = _lambda.Function(
@@ -320,7 +323,10 @@ class ExpeditionStack(Stack):
             self, 'passthrusub',
             log_group = passthrulogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+            filter_pattern = _logs.FilterPattern.any_term_group(
+                ['ERROR'],
+                ['Task','timed','out']
+            )
         )
 
         batchwriter = _lambda.Function(
@@ -345,7 +351,10 @@ class ExpeditionStack(Stack):
             self, 'batchwritersub',
             log_group = batchwriterlogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+            filter_pattern = _logs.FilterPattern.any_term_group(
+                ['ERROR'],
+                ['Task','timed','out']
+            )
         )
 
         initial = _tasks.LambdaInvoke(
