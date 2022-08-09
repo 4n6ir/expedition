@@ -426,3 +426,15 @@ class ExpeditionStack(Stack):
                 )
             )
         )
+
+        actionevent.add_target(
+            _targets.LambdaFunction(
+                startquery,
+                event = _events.RuleTargetInput.from_object(
+                    {
+                        "query": "SELECT eventSource, eventName, recipientAccountId, awsRegion, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' AND (errorMessage != '' OR errorCode != '') GROUP BY eventSource, eventName, recipientAccountId, awsRegion",
+                        "table": "ErrorIndex"
+                    }
+                )
+            )
+        )
