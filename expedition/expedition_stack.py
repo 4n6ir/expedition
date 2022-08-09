@@ -10,6 +10,7 @@ from aws_cdk import (
     aws_events_targets as _targets,
     aws_iam as _iam,
     aws_lambda as _lambda,
+    aws_lambda_event_sources as _sources,
     aws_logs as _logs,
     aws_logs_destinations as _destinations,
     aws_s3 as _s3,
@@ -98,6 +99,7 @@ class ExpeditionStack(Stack):
                 'type': _dynamodb.AttributeType.STRING
             },
             billing_mode = _dynamodb.BillingMode.PAY_PER_REQUEST,
+            stream = _dynamodb.StreamViewType.NEW_AND_OLD_IMAGES,
             removal_policy = RemovalPolicy.DESTROY,
             point_in_time_recovery = True
         )
@@ -265,8 +267,46 @@ class ExpeditionStack(Stack):
         errormonitor = _logs.LogGroup(
             self, 'errormonitor',
             log_group_name = '/aws/lambda/'+error.function_name,
-            retention = _logs.RetentionDays.ONE_DAY,
+            retention = _logs.RetentionDays.INFINITE,
             removal_policy = RemovalPolicy.DESTROY
+        )
+
+        alarm = _lambda.Function(
+            self, 'alarm',
+            runtime = _lambda.Runtime.PYTHON_3_9,
+            code = _lambda.Code.from_asset('alarm'),
+            handler = 'alarm.handler',
+            role = role,
+            environment = dict(
+                SNS_TOPIC = securitytopic.topic_arn
+            ),
+            architecture = _lambda.Architecture.ARM_64,
+            timeout = Duration.seconds(3),
+            memory_size = 128
+        )
+
+        alarmlogs = _logs.LogGroup(
+            self, 'alarmlogs',
+            log_group_name = '/aws/lambda/'+alarm.function_name,
+            retention = _logs.RetentionDays.INFINITE,
+            removal_policy = RemovalPolicy.DESTROY
+        )
+
+        alarmsub = _logs.SubscriptionFilter(
+            self, 'alarmsub',
+            log_group = alarmlogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.any_term_group(
+                ['ERROR'],
+                ['Task','timed','out']
+            )
+        )
+
+        alarm.add_event_source(
+            _sources.DynamoEventSource(
+                table = actionindex,
+                starting_position = _lambda.StartingPosition.LATEST
+            )
         )
 
         startquery = _lambda.Function(
@@ -343,7 +383,7 @@ class ExpeditionStack(Stack):
         batchwriterlogs = _logs.LogGroup(
             self, 'batchwriterlogs',
             log_group_name = '/aws/lambda/'+batchwriter.function_name,
-            retention = _logs.RetentionDays.ONE_DAY,
+            retention = _logs.RetentionDays.INFINITE,
             removal_policy = RemovalPolicy.DESTROY
         )
 
