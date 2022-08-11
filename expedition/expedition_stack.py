@@ -75,7 +75,7 @@ class ExpeditionStack(Stack):
         bucket = _s3.Bucket(
             self, 'bucket',
             bucket_name = bucket_name,
-            encryption = _s3.BucketEncryption.KMS_MANAGED,
+            encryption = _s3.BucketEncryption.S3_MANAGED,
             block_public_access = _s3.BlockPublicAccess.BLOCK_ALL,
             removal_policy = RemovalPolicy.DESTROY,
             auto_delete_objects = True,
