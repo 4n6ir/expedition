@@ -84,7 +84,7 @@ class ExpeditionStack(Stack):
     
         bucket.add_lifecycle_rule(
             expiration = Duration.days(1),
-            noncurrent_version_expiration = Duration.days(1)
+            noncurrent_version_expiration = Duration.days(42)
         )
 
         actionindex = _dynamodb.Table(
@@ -162,7 +162,8 @@ class ExpeditionStack(Stack):
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions = [
-                    'dynamodb:PutItem'
+                    'dynamodb:PutItem',
+                    'dynamodb:Query'
                 ],
                 resources = [
                     actionindex.table_arn,
@@ -296,10 +297,14 @@ class ExpeditionStack(Stack):
             self, 'alarmsub',
             log_group = alarmlogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.any_term_group(
-                ['ERROR'],
-                ['Task','timed','out']
-            )
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        alarmtime = _logs.SubscriptionFilter(
+            self, 'alarmtime',
+            log_group = alarmlogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
         alarm.add_event_source(
@@ -335,10 +340,14 @@ class ExpeditionStack(Stack):
             self, 'startquerysub',
             log_group = startquerylogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.any_term_group(
-                ['ERROR'],
-                ['Task','timed','out']
-            )
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        startquerytime= _logs.SubscriptionFilter(
+            self, 'startquerytime',
+            log_group = startquerylogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
         passthru = _lambda.Function(
@@ -363,10 +372,14 @@ class ExpeditionStack(Stack):
             self, 'passthrusub',
             log_group = passthrulogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.any_term_group(
-                ['ERROR'],
-                ['Task','timed','out']
-            )
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        passthrutime = _logs.SubscriptionFilter(
+            self, 'passthrutime',
+            log_group = passthrulogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
         batchwriter = _lambda.Function(
@@ -391,10 +404,14 @@ class ExpeditionStack(Stack):
             self, 'batchwritersub',
             log_group = batchwriterlogs,
             destination = _destinations.LambdaDestination(error),
-            filter_pattern = _logs.FilterPattern.any_term_group(
-                ['ERROR'],
-                ['Task','timed','out']
-            )
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        batchwritertime = _logs.SubscriptionFilter(
+            self, 'batchwritertime',
+            log_group = batchwriterlogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
         initial = _tasks.LambdaInvoke(
@@ -486,4 +503,39 @@ class ExpeditionStack(Stack):
                     }
                 )
             )
+        )
+
+        report = _lambda.Function(
+            self, 'report',
+            runtime = _lambda.Runtime.PYTHON_3_9,
+            code = _lambda.Code.from_asset('report'),
+            handler = 'report.handler',
+            role = role,
+            environment = dict(
+                BUCKET = bucket.bucket_name
+            ),
+            architecture = _lambda.Architecture.ARM_64,
+            timeout = Duration.seconds(900),
+            memory_size = 128
+        )
+
+        reportlogs = _logs.LogGroup(
+            self, 'reportlogs',
+            log_group_name = '/aws/lambda/'+report.function_name,
+            retention = _logs.RetentionDays.INFINITE,
+            removal_policy = RemovalPolicy.DESTROY
+        )
+
+        reportsub = _logs.SubscriptionFilter(
+            self, 'reportsub',
+            log_group = reportlogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        reporttime = _logs.SubscriptionFilter(
+            self, 'reporttime',
+            log_group = reportlogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
