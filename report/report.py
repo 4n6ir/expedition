@@ -15,7 +15,7 @@ def handler(event, context):
     ### DYNAMODB QUERY ###
 
     dynamodb = boto3.resource('dynamodb')
-    table = dynamodb.Table('errorindex')
+    table = dynamodb.Table(event['table'])
 
     response = table.query(
         KeyConditionExpression = Key('pk').eq('ACTION') & Key('sk').begins_with('AWS#'+sort+'#')
@@ -32,9 +32,26 @@ def handler(event, context):
         
         responsedata.extend(response['Items'])
 
-
-    print(responsedata)
+    f = open('/tmp/expedition.html', 'w')
     
+    f.write('<HTML>')
+    f.write('<BODY>')
+    f.write('<TABLE>')
+    f.write('<TR><TH>Time</TH><TH>Action</TH><TH>Count</TH><TH>Account</TH><TH>Region</TH></TR>')
+    
+    for item in responsedata:
+
+        f.write('<TR><TD>'+str(item['time'])+'</TD><TD>'+str(item['action'])+'</TD><TD>'+str(item['count'])+'</TD><TD>'+str(item['account'])+'</TD><TD>'+str(item['region'])+'</TD></TR>')
+
+    f.write('</TABLE>')
+    f.write('</BODY>')
+    f.write('</HTML>')
+    
+    f.close()
+
+    s3_client = boto3.client('s3')
+
+    s3_client.upload_file('/tmp/expedition.html', os.environ['BUCKET'], event['folder']+'/expedition.html')
 
     return {
         'statusCode': 200,

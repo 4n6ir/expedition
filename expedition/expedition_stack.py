@@ -5,6 +5,7 @@ from aws_cdk import (
     Duration,
     RemovalPolicy,
     Stack,
+    aws_cloudwatch as _cloudwatch,
     aws_dynamodb as _dynamodb,
     aws_events as _events,
     aws_events_targets as _targets,
@@ -219,6 +220,19 @@ class ExpeditionStack(Stack):
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions = [
+                    's3:GetObject',
+                    's3:PutObject'
+                ],
+                resources = [
+                    bucket.bucket_arn,
+                    bucket.arn_for_objects('*')
+                ]
+            )
+        )
+
+        role.add_to_policy(
+            _iam.PolicyStatement(
+                actions = [
                     'secretsmanager:GetSecretValue'
                 ],
                 resources = [
@@ -268,7 +282,7 @@ class ExpeditionStack(Stack):
         errormonitor = _logs.LogGroup(
             self, 'errormonitor',
             log_group_name = '/aws/lambda/'+error.function_name,
-            retention = _logs.RetentionDays.INFINITE,
+            retention = _logs.RetentionDays.ONE_DAY,
             removal_policy = RemovalPolicy.DESTROY
         )
 
@@ -289,7 +303,7 @@ class ExpeditionStack(Stack):
         alarmlogs = _logs.LogGroup(
             self, 'alarmlogs',
             log_group_name = '/aws/lambda/'+alarm.function_name,
-            retention = _logs.RetentionDays.INFINITE,
+            retention = _logs.RetentionDays.ONE_DAY,
             removal_policy = RemovalPolicy.DESTROY
         )
 
@@ -396,7 +410,7 @@ class ExpeditionStack(Stack):
         batchwriterlogs = _logs.LogGroup(
             self, 'batchwriterlogs',
             log_group_name = '/aws/lambda/'+batchwriter.function_name,
-            retention = _logs.RetentionDays.INFINITE,
+            retention = _logs.RetentionDays.ONE_DAY,
             removal_policy = RemovalPolicy.DESTROY
         )
 
@@ -522,7 +536,7 @@ class ExpeditionStack(Stack):
         reportlogs = _logs.LogGroup(
             self, 'reportlogs',
             log_group_name = '/aws/lambda/'+report.function_name,
-            retention = _logs.RetentionDays.INFINITE,
+            retention = _logs.RetentionDays.ONE_DAY,
             removal_policy = RemovalPolicy.DESTROY
         )
 
@@ -538,4 +552,133 @@ class ExpeditionStack(Stack):
             log_group = reportlogs,
             destination = _destinations.LambdaDestination(error),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
+        )
+
+        reportevent = _events.Rule(
+            self, 'reportevent',
+            schedule = _events.Schedule.cron(
+                minute = '17',
+                hour = '*',
+                month = '*',
+                week_day = '*',
+                year = '*'
+            )
+        )
+        
+        reportevent.add_target(
+            _targets.LambdaFunction(
+                report,
+                event = _events.RuleTargetInput.from_object(
+                    {
+                        "folder": "actions",
+                        "table": "ActionIndex"
+                    }
+                )
+            )
+        )
+
+        reportevent.add_target(
+            _targets.LambdaFunction(
+                report,
+                event = _events.RuleTargetInput.from_object(
+                    {
+                        "folder": "errors",
+                        "table": "ErrorIndex"
+                    }
+                )
+            )
+        )
+
+        widgetactions = _lambda.Function(
+            self, 'widgetactions',
+            runtime = _lambda.Runtime.PYTHON_3_9,
+            code = _lambda.Code.from_asset('widgetactions'),
+            handler = 'widgetactions.handler',
+            role = role,
+            environment = dict(
+                BUCKET = bucket.bucket_name
+            ),
+            architecture = _lambda.Architecture.ARM_64,
+            timeout = Duration.seconds(900),
+            memory_size = 128
+        )
+
+        widgetactionslogs = _logs.LogGroup(
+            self, 'widgetactionslogs',
+            log_group_name = '/aws/lambda/'+widgetactions.function_name,
+            retention = _logs.RetentionDays.ONE_DAY,
+            removal_policy = RemovalPolicy.DESTROY
+        )
+
+        widgetactionssub = _logs.SubscriptionFilter(
+            self, 'widgetactionssub',
+            log_group = widgetactionslogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        widgetactionstime = _logs.SubscriptionFilter(
+            self, 'widgetactionstime',
+            log_group = widgetactionslogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
+        )
+
+        dashboardactions = _cloudwatch.Dashboard(
+            self, 'dashboardactions',
+            dashboard_name = 'ExpeditionActions'
+        )
+
+        dashboardactions.add_widgets(
+            _cloudwatch.CustomWidget(
+                function_arn = widgetactions.function_arn,
+                title = 'Expedition Actions'
+            )
+        )
+
+        widgeterrors = _lambda.Function(
+            self, 'widgeterrors',
+            runtime = _lambda.Runtime.PYTHON_3_9,
+            code = _lambda.Code.from_asset('widgeterrors'),
+            handler = 'widgeterrors.handler',
+            role = role,
+            environment = dict(
+                BUCKET = bucket.bucket_name
+            ),
+            architecture = _lambda.Architecture.ARM_64,
+            timeout = Duration.seconds(900),
+            memory_size = 128
+        )
+
+        widgeterrorslogs = _logs.LogGroup(
+            self, 'widgeterrorslogs',
+            log_group_name = '/aws/lambda/'+widgeterrors.function_name,
+            retention = _logs.RetentionDays.ONE_DAY,
+            removal_policy = RemovalPolicy.DESTROY
+        )
+
+        widgeterrorssub = _logs.SubscriptionFilter(
+            self, 'widgeterrorssub',
+            log_group = widgeterrorslogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        widgeterrorstime = _logs.SubscriptionFilter(
+            self, 'widgeterrorstime',
+            log_group = widgeterrorslogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
+        )
+
+        dashboarderrors = _cloudwatch.Dashboard(
+            self, 'dashboarderrors',
+            dashboard_name = 'ExpeditionErrors'
+        )
+
+        dashboardactions.add_widgets(
+            _cloudwatch.CustomWidget(
+                function_arn = widgeterrors.function_arn,
+                title = 'Expedition Errors'
+            )
         )
