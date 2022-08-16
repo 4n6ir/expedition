@@ -1,6 +1,14 @@
 # expedition
 
-### CREATE EVENT DATA STORE
+### Management Account
+
+
+
+### Expedition Deployment
+
+
+
+### Create Event Data Store
 
 ![cloudtrail-lake-configuration](CONFIGURE.png)
 
