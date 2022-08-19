@@ -17,7 +17,7 @@ def handler(event, context):
     actions.append('ec2:DisableEbsEncryptionByDefault')
     actions.append('ec2:ModifyInstanceAttribute')
     actions.append('ec2:ModifySnapshotAttribute')
-    actions.append('ecs:DescribeTaskDefinition')
+    #actions.append('ecs:DescribeTaskDefinition')
     actions.append('ecs:RegisterTaskDefinition')
     actions.append('ecs:RunTask')
     actions.append('eks:CreateCluster')
@@ -59,8 +59,8 @@ def handler(event, context):
     actions.append('securityhub:DeleteInsight')
     actions.append('securityhub:UpdateFindings')
     actions.append('securityhub:UpdateInsight')
-    actions.append('sts:AssumeRoleWithSAML')
-    actions.append('sts:GetCallerIdentity')
+    #actions.append('sts:AssumeRoleWithSAML')
+    #actions.append('sts:GetCallerIdentity')
     actions.append('sts:GetSessionToken')
 
     if event['Records'][0]['dynamodb']['NewImage']['action']['S'] in actions:
