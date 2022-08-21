@@ -275,7 +275,7 @@ class ExpeditionStack(Stack):
                 SNS_TOPIC = operationstopic.topic_arn
             ),
             architecture = _lambda.Architecture.ARM_64,
-            timeout = Duration.seconds(3),
+            timeout = Duration.seconds(7),
             memory_size = 128
         )
 
@@ -296,7 +296,7 @@ class ExpeditionStack(Stack):
                 SNS_TOPIC = securitytopic.topic_arn
             ),
             architecture = _lambda.Architecture.ARM_64,
-            timeout = Duration.seconds(3),
+            timeout = Duration.seconds(7),
             memory_size = 128
         )
 
@@ -342,7 +342,7 @@ class ExpeditionStack(Stack):
             memory_size = 128,
             role = role
         )
-        
+
         startquerylogs = _logs.LogGroup(
             self, 'startquerylogs',
             log_group_name = '/aws/lambda/'+startquery.function_name,
@@ -374,7 +374,7 @@ class ExpeditionStack(Stack):
             memory_size = 128,
             role = role
         )
-        
+
         passthrulogs = _logs.LogGroup(
             self, 'passthrulogs',
             log_group_name = '/aws/lambda/'+passthru.function_name,
@@ -406,7 +406,7 @@ class ExpeditionStack(Stack):
             memory_size = 128,
             role = role
         )
-        
+
         batchwriterlogs = _logs.LogGroup(
             self, 'batchwriterlogs',
             log_group_name = '/aws/lambda/'+batchwriter.function_name,
@@ -457,14 +457,28 @@ class ExpeditionStack(Stack):
                 .when(_sfn.Condition.string_equals('$.status', 'SUCCEEDED'), succeed)
                 .otherwise(batch)
             )
-            
+
         statelogs = _logs.LogGroup(
             self, 'statelogs',
             log_group_name = '/aws/state/expedition',
             retention = _logs.RetentionDays.ONE_DAY,
             removal_policy = RemovalPolicy.DESTROY
         )
-            
+
+        statesub = _logs.SubscriptionFilter(
+            self, 'statesub',
+            log_group = statelogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('ERROR')
+        )
+
+        statetime = _logs.SubscriptionFilter(
+            self, 'statetime',
+            log_group = statelogs,
+            destination = _destinations.LambdaDestination(error),
+            filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
+        )
+
         state = _sfn.StateMachine(
             self, 'state',
             state_machine_name = 'expedition',
@@ -494,7 +508,7 @@ class ExpeditionStack(Stack):
                 year = '*'
             )
         )
-        
+
         actionevent.add_target(
             _targets.LambdaFunction(
                 startquery,
@@ -564,7 +578,7 @@ class ExpeditionStack(Stack):
                 year = '*'
             )
         )
-        
+
         reportevent.add_target(
             _targets.LambdaFunction(
                 report,
