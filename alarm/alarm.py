@@ -12,6 +12,7 @@ def handler(event, context):
     actions.append('cloudtrail:UpdateTrail')
     actions.append('config:DeleteDeliveryChannel')
     actions.append('config:StopConfigurationRecorder')
+    actions.append('ec2:CreateDefaultVpc')
     actions.append('ec2:CreateInstanceExportTask')
     actions.append('ec2:DescribeInstanceAttribute')
     actions.append('ec2:DisableEbsEncryptionByDefault')
