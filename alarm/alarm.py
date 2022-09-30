@@ -48,6 +48,8 @@ def handler(event, context):
     actions.append('iam:CreateAccessKey')
     actions.append('iam:CreateLoginProfile')
     actions.append('iam:CreateUser')
+    actions.append('iam:DeactivateMFADevice')
+    actions.append('iam:DeleteVirtualMFADevice')
     actions.append('iam:UpdateLoginProfile')
     actions.append('iam:UpdateSAMLProvider')
     actions.append('kms:DisableKey')
