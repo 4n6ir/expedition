@@ -84,8 +84,8 @@ class ExpeditionStack(Stack):
         )
     
         bucket.add_lifecycle_rule(
-            expiration = Duration.days(1),
-            noncurrent_version_expiration = Duration.days(42)
+            expiration = Duration.days(42),
+            noncurrent_version_expiration = Duration.days(1)
         )
 
         actionindex = _dynamodb.Table(
