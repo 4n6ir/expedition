@@ -58,7 +58,7 @@ def handler(event, context):
         )
         for tag in tags['ResourceTagList']:
             for lists in tag['TagsList']:
-                if lists['Key'] == 'expedition':
+                if lists['Key'] == 'Expedition':
                     parse = tag['ResourceId'].split('/')
                     expedition = parse[1]
 

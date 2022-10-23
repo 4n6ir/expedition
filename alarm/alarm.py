@@ -1,10 +1,20 @@
 import boto3
 import json
 import os
+from datetime import datetime, timezone
 
 def handler(event, context):
 
     actions = []
+    actions.append('cloudshell:CreateEnvironment')
+    actions.append('cloudshell:CreateSession')
+    actions.append('cloudshell:DeleteEnvironment')
+    actions.append('cloudshell:GetEnvironmentStatus')
+    actions.append('cloudshell:GetFileDownloadUrls')
+    actions.append('cloudshell:GetFileUploadUrls')
+    actions.append('cloudshell:PutCredentials')
+    actions.append('cloudshell:StartEnvironment')
+    actions.append('cloudshell:StopEnvironment')
     actions.append('cloudtrail:DeleteEventDataStore')
     actions.append('cloudtrail:DeleteTrail')
     actions.append('cloudtrail:PutEventSelectors')
@@ -104,13 +114,45 @@ def handler(event, context):
 
     if event['Records'][0]['dynamodb']['NewImage']['action']['S'] in actions:
 
-        client = boto3.client('sns')
+        account = os.environ['ACCOUNT']
+        region = os.environ['REGION']
 
-        response = client.publish(
-            TopicArn = os.environ['SNS_TOPIC'],
-            Subject = 'Expedition Alarm - '+str(event['Records'][0]['dynamodb']['NewImage']['action']['S']),
-            Message = str(event['Records'][0]['dynamodb']['NewImage'])
+        now = datetime.now(timezone.utc).isoformat().replace('+00:00','Z')
+
+        securityhub_client = boto3.client('securityhub')
+
+        securityhub_response = securityhub_client.batch_import_findings(
+            Findings = [
+                {
+                    "SchemaVersion": "2018-10-08",
+                    "Id": region+"/"+account+"/alarm",
+                    "ProductArn": "arn:aws:securityhub:"+region+":"+account+":product/"+account+"/default", 
+                    "GeneratorId": "ct-alarm",
+                    "AwsAccountId": account,
+                    "CreatedAt": now,
+                    "UpdatedAt": now,
+                    "Title": "Alarm",
+                    "Description": str(event['Records'][0]['dynamodb']['NewImage']),
+                    "Resources": [
+                        {
+                            "Type": "AwsLambda",
+                            "Id": "arn:aws:lambda:"+region+":"+account+":function:alarm"
+                        }
+                    ],
+                    "FindingProviderFields": {
+                        "Confidence": 100,
+                        "Severity": {
+                            "Label": "CRITICAL"
+                        },
+                        "Types": [
+                            "security/ct/alarm"
+                        ]
+                    }
+                }
+            ]
         )
+
+        print(securityhub_response)
 
     return {
         'statusCode': 200,

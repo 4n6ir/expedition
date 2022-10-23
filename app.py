@@ -18,6 +18,7 @@ ExpeditionStack(
     )
 )
 
-cdk.Tags.of(app).add('expedition','expedition')
+cdk.Tags.of(app).add('Alias','Athena')
+cdk.Tags.of(app).add('GitHub','https://github.com/jblukach/expedition')
 
 app.synth()

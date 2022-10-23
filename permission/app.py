@@ -18,6 +18,8 @@ PermissionStack(
     )
 )
 
-cdk.Tags.of(app).add('expedition','expedition')
+cdk.Tags.of(app).add('Alias','Portal')
+cdk.Tags.of(app).add('Expedition','Expedition')
+cdk.Tags.of(app).add('GitHub','https://github.com/jblukach/expedition/tree/main/permission')
 
 app.synth()

@@ -1,6 +1,3 @@
-import boto3
-import sys
-
 from aws_cdk import (
     Duration,
     RemovalPolicy,
@@ -15,7 +12,6 @@ from aws_cdk import (
     aws_logs as _logs,
     aws_logs_destinations as _destinations,
     aws_s3 as _s3,
-    aws_sns as _sns,
     aws_sns_subscriptions as _subs,
     aws_ssm as _ssm,
     aws_stepfunctions as _sfn,
@@ -33,45 +29,24 @@ class ExpeditionStack(Stack):
         region = Stack.of(self).region
         bucket_name = 'expedition-'+account+'-'+region
 
-        try:
-            client = boto3.client('account')
-            billing = client.get_alternate_contact(
-                AlternateContactType='BILLING'
-            )
-            operations = client.get_alternate_contact(
-                AlternateContactType='OPERATIONS'
-            )
-            security = client.get_alternate_contact(
-                AlternateContactType='SECURITY'
-            )
-        except:
-            print('Missing IAM Permission --> account:GetAlternateContact')
-            sys.exit(1)
-            pass
+    ### LAMBDA LAYER ###
 
-        billingtopic = _sns.Topic(
-            self, 'billingtopic'
+        if region == 'ap-northeast-1' or region == 'ap-south-1' or region == 'ap-southeast-1' or \
+            region == 'ap-southeast-2' or region == 'eu-central-1' or region == 'eu-west-1' or \
+            region == 'eu-west-2' or region == 'me-central-1' or region == 'us-east-1' or \
+            region == 'us-east-2' or region == 'us-west-2': number = str(1)
+
+        if region == 'af-south-1' or region == 'ap-east-1' or region == 'ap-northeast-2' or \
+            region == 'ap-northeast-3' or region == 'ap-southeast-3' or region == 'ca-central-1' or \
+            region == 'eu-north-1' or region == 'eu-south-1' or region == 'eu-west-3' or \
+            region == 'me-south-1' or region == 'sa-east-1' or region == 'us-west-1': number = str(2)
+
+        layer = _lambda.LayerVersion.from_layer_version_arn(
+            self, 'layer',
+            layer_version_arn = 'arn:aws:lambda:'+region+':070176467818:layer:getpublicip:'+number
         )
 
-        billingtopic.add_subscription(
-            _subs.EmailSubscription(billing['AlternateContact']['EmailAddress'])
-        )
-
-        operationstopic = _sns.Topic(
-            self, 'operationstopic'
-        )
-
-        operationstopic.add_subscription(
-            _subs.EmailSubscription(operations['AlternateContact']['EmailAddress'])
-        )
-
-        securitytopic = _sns.Topic(
-            self, 'securitytopic'
-        )
-
-        securitytopic.add_subscription(
-            _subs.EmailSubscription(security['AlternateContact']['EmailAddress'])
-        )
+    ### STORAGE ###
 
         bucket = _s3.Bucket(
             self, 'bucket',
@@ -87,6 +62,8 @@ class ExpeditionStack(Stack):
             expiration = Duration.days(42),
             noncurrent_version_expiration = Duration.days(1)
         )
+
+    ### DYNAMODB ###
 
         actionindex = _dynamodb.Table(
             self, 'actionindex',
@@ -146,6 +123,8 @@ class ExpeditionStack(Stack):
             },
             projection_type = _dynamodb.ProjectionType.ALL
         )
+
+    ### IAM ROLE ###
 
         role = _iam.Role(
             self, 'role',
@@ -255,49 +234,45 @@ class ExpeditionStack(Stack):
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions = [
-                    'sns:Publish'
+                    'securityhub:BatchImportFindings'
                 ],
                 resources = [
-                    billingtopic.topic_arn,
-                    operationstopic.topic_arn,
-                    securitytopic.topic_arn
+                    'arn:aws:securityhub:'+region+':'+account+':product/'+account+'/default'
                 ]
             )
         )
 
-        error = _lambda.Function(
+    ### ERROR ###
+
+        error = _lambda.Function.from_function_arn(
             self, 'error',
-            runtime = _lambda.Runtime.PYTHON_3_9,
-            code = _lambda.Code.from_asset('error'),
-            handler = 'error.handler',
-            role = role,
-            environment = dict(
-                SNS_TOPIC = operationstopic.topic_arn
-            ),
-            architecture = _lambda.Architecture.ARM_64,
-            timeout = Duration.seconds(7),
-            memory_size = 128
+            'arn:aws:lambda:'+region+':'+account+':function:shipit-error'
         )
 
-        errormonitor = _logs.LogGroup(
-            self, 'errormonitor',
-            log_group_name = '/aws/lambda/'+error.function_name,
-            retention = _logs.RetentionDays.ONE_DAY,
-            removal_policy = RemovalPolicy.DESTROY
+        timeout = _lambda.Function.from_function_arn(
+            self, 'timeout',
+            'arn:aws:lambda:'+region+':'+account+':function:shipit-timeout'
         )
+
+    ### ALARM ###
 
         alarm = _lambda.Function(
             self, 'alarm',
+            function_name = 'alarm',
             runtime = _lambda.Runtime.PYTHON_3_9,
             code = _lambda.Code.from_asset('alarm'),
-            handler = 'alarm.handler',
-            role = role,
-            environment = dict(
-                SNS_TOPIC = securitytopic.topic_arn
-            ),
             architecture = _lambda.Architecture.ARM_64,
-            timeout = Duration.seconds(7),
-            memory_size = 128
+            timeout = Duration.seconds(60),
+            handler = 'alarm.handler',
+            environment = dict(
+                ACCOUNT = account,
+                REGION = region
+            ),
+            memory_size = 128,
+            role = role,
+            layers = [
+                layer
+            ]
         )
 
         alarmlogs = _logs.LogGroup(
@@ -317,7 +292,7 @@ class ExpeditionStack(Stack):
         alarmtime = _logs.SubscriptionFilter(
             self, 'alarmtime',
             log_group = alarmlogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
@@ -327,6 +302,8 @@ class ExpeditionStack(Stack):
                 starting_position = _lambda.StartingPosition.LATEST
             )
         )
+
+    ### START QUERY ###
 
         startquery = _lambda.Function(
             self, 'startquery',
@@ -340,7 +317,10 @@ class ExpeditionStack(Stack):
                 STATE = '/expedition/state'
             ),
             memory_size = 128,
-            role = role
+            role = role,
+            layers = [
+                layer
+            ]
         )
 
         startquerylogs = _logs.LogGroup(
@@ -360,19 +340,24 @@ class ExpeditionStack(Stack):
         startquerytime= _logs.SubscriptionFilter(
             self, 'startquerytime',
             log_group = startquerylogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
+
+    ### PASS THRU ###
 
         passthru = _lambda.Function(
             self, 'passthru',
             runtime = _lambda.Runtime.PYTHON_3_9,
             code = _lambda.Code.from_asset('passthru'),
             architecture = _lambda.Architecture.ARM_64,
-            timeout = Duration.seconds(3),
+            timeout = Duration.seconds(60),
             handler = 'passthru.handler',
             memory_size = 128,
-            role = role
+            role = role,
+            layers = [
+                layer
+            ]
         )
 
         passthrulogs = _logs.LogGroup(
@@ -392,9 +377,11 @@ class ExpeditionStack(Stack):
         passthrutime = _logs.SubscriptionFilter(
             self, 'passthrutime',
             log_group = passthrulogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
+
+    ### BATCH WRITER ###
 
         batchwriter = _lambda.Function(
             self, 'batchwriter',
@@ -404,7 +391,10 @@ class ExpeditionStack(Stack):
             timeout = Duration.seconds(900),
             handler = 'batchwriter.handler',
             memory_size = 128,
-            role = role
+            role = role,
+            layers = [
+                layer
+            ]
         )
 
         batchwriterlogs = _logs.LogGroup(
@@ -424,9 +414,11 @@ class ExpeditionStack(Stack):
         batchwritertime = _logs.SubscriptionFilter(
             self, 'batchwritertime',
             log_group = batchwriterlogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
+
+    ### STEP FUNCTION ###
 
         initial = _tasks.LambdaInvoke(
             self, 'initial',
@@ -475,7 +467,7 @@ class ExpeditionStack(Stack):
         statetime = _logs.SubscriptionFilter(
             self, 'statetime',
             log_group = statelogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
@@ -497,6 +489,8 @@ class ExpeditionStack(Stack):
             string_value = state.state_machine_arn,
             tier = _ssm.ParameterTier.STANDARD
         )
+
+    ### EVENTS ###
 
         actionevent = _events.Rule(
             self, 'actionevent',
@@ -533,6 +527,8 @@ class ExpeditionStack(Stack):
             )
         )
 
+    ### REPORTING ###
+
         report = _lambda.Function(
             self, 'report',
             runtime = _lambda.Runtime.PYTHON_3_9,
@@ -544,7 +540,10 @@ class ExpeditionStack(Stack):
             ),
             architecture = _lambda.Architecture.ARM_64,
             timeout = Duration.seconds(900),
-            memory_size = 128
+            memory_size = 128,
+            layers = [
+                layer
+            ]
         )
 
         reportlogs = _logs.LogGroup(
@@ -564,7 +563,7 @@ class ExpeditionStack(Stack):
         reporttime = _logs.SubscriptionFilter(
             self, 'reporttime',
             log_group = reportlogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
@@ -603,6 +602,8 @@ class ExpeditionStack(Stack):
             )
         )
 
+    ### DASHBOARD ###
+
         widget = _lambda.Function(
             self, 'widget',
             runtime = _lambda.Runtime.PYTHON_3_9,
@@ -614,7 +615,10 @@ class ExpeditionStack(Stack):
             ),
             architecture = _lambda.Architecture.ARM_64,
             timeout = Duration.seconds(900),
-            memory_size = 128
+            memory_size = 128,
+            layers = [
+                layer
+            ]
         )
 
         widgetlogs = _logs.LogGroup(
@@ -634,7 +638,7 @@ class ExpeditionStack(Stack):
         widgettime = _logs.SubscriptionFilter(
             self, 'widgettime',
             log_group = widgetlogs,
-            destination = _destinations.LambdaDestination(error),
+            destination = _destinations.LambdaDestination(timeout),
             filter_pattern = _logs.FilterPattern.all_terms('Task','timed','out')
         )
 
