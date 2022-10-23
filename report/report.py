@@ -37,11 +37,11 @@ def handler(event, context):
     f.write('<HTML>')
     f.write('<BODY>')
     f.write('<TABLE>')
-    f.write('<TR><TH>Time</TH><TH>Action</TH><TH>Count</TH><TH>Account</TH><TH>Region</TH></TR>')
+    f.write('<TR><TH>Time</TH><TH>Action</TH><TH>Count</TH><TH>Account</TH><TH>Region</TH><TH>Address</TH></TR>')
     
     for item in responsedata:
 
-        f.write('<TR><TD>'+str(item['time'])+'</TD><TD>'+str(item['action'])+'</TD><TD>'+str(item['count'])+'</TD><TD>'+str(item['account'])+'</TD><TD>'+str(item['region'])+'</TD></TR>')
+        f.write('<TR><TD>'+str(item['time'])+'</TD><TD>'+str(item['action'])+'</TD><TD>'+str(item['count'])+'</TD><TD>'+str(item['account'])+'</TD><TD>'+str(item['region'])+'</TD><TD>'+str(item['address'])+'</TD></TR>')
 
     f.write('</TABLE>')
     f.write('</BODY>')

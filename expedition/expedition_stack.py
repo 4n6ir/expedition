@@ -479,7 +479,7 @@ class ExpeditionStack(Stack):
                 destination = statelogs,
                 level = _sfn.LogLevel.ALL
             ),
-            timeout = Duration.minutes(30)
+            timeout = Duration.minutes(42)
         )
 
         parameter = _ssm.StringParameter(
@@ -508,7 +508,7 @@ class ExpeditionStack(Stack):
                 startquery,
                 event = _events.RuleTargetInput.from_object(
                     {
-                        "query": "SELECT eventSource, eventName, recipientAccountId, awsRegion, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' GROUP BY eventSource, eventName, recipientAccountId, awsRegion",
+                        "query": "SELECT eventSource, eventName, recipientAccountId, awsRegion, sourceIPAddress, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' GROUP BY eventSource, eventName, recipientAccountId, awsRegion, sourceIPAddress",
                         "table": "ActionIndex"
                     }
                 )
@@ -520,7 +520,7 @@ class ExpeditionStack(Stack):
                 startquery,
                 event = _events.RuleTargetInput.from_object(
                     {
-                        "query": "SELECT eventSource, eventName, recipientAccountId, awsRegion, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' AND (errorMessage != '' OR errorCode != '') GROUP BY eventSource, eventName, recipientAccountId, awsRegion",
+                        "query": "SELECT eventSource, eventName, recipientAccountId, awsRegion, sourceIPAddress, COUNT(*) AS apiCount FROM <DATA> WHERE eventTime >= '<START>' AND eventTime < '<END>' AND (errorMessage != '' OR errorCode != '') GROUP BY eventSource, eventName, recipientAccountId, awsRegion, sourceIPAddress",
                         "table": "ErrorIndex"
                     }
                 )

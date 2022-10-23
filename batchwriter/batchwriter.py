@@ -7,11 +7,12 @@ def actions(item, sort, table, time):
     name = parse[0]+':'+item[1]['eventName']
     action = {}
     action['pk'] = 'ACTION'
-    action['sk'] = 'AWS#'+sort+'#'+name
+    action['sk'] = 'AWS#'+sort+'#'+name+'#'+item[4]['sourceIPAddress']
     action['action'] = name
     action['account'] = item[2]['recipientAccountId']
     action['region'] = item[3]['awsRegion']
-    action['count'] = item[4]['apiCount']
+    action['address'] = item[4]['sourceIPAddress']
+    action['count'] = item[5]['apiCount']
     action['time'] = time
     
     dynamodb = boto3.resource('dynamodb')
