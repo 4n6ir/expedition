@@ -95,6 +95,19 @@ class ExpeditionStack(Stack):
             projection_type = _dynamodb.ProjectionType.ALL
         )
 
+        actionindex.add_global_secondary_index(
+            index_name = 'addresses',
+            partition_key = {
+                'name': 'address',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            sort_key = {
+                'name': 'sk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            projection_type = _dynamodb.ProjectionType.ALL
+        )
+
         errorindex = _dynamodb.Table(
             self, 'errorindex',
             table_name = 'ErrorIndex',
@@ -115,6 +128,19 @@ class ExpeditionStack(Stack):
             index_name = 'errors',
             partition_key = {
                 'name': 'action',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            sort_key = {
+                'name': 'sk',
+                'type': _dynamodb.AttributeType.STRING
+            },
+            projection_type = _dynamodb.ProjectionType.ALL
+        )
+
+        errorindex.add_global_secondary_index(
+            index_name = 'addresses',
+            partition_key = {
+                'name': 'address',
                 'type': _dynamodb.AttributeType.STRING
             },
             sort_key = {
