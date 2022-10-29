@@ -521,7 +521,7 @@ class ExpeditionStack(Stack):
         actionevent = _events.Rule(
             self, 'actionevent',
             schedule = _events.Schedule.cron(
-                minute = '1',
+                minute = '17',
                 hour = '*',
                 month = '*',
                 week_day = '*',
@@ -596,7 +596,7 @@ class ExpeditionStack(Stack):
         reportevent = _events.Rule(
             self, 'reportevent',
             schedule = _events.Schedule.cron(
-                minute = '17',
+                minute = '33',
                 hour = '*',
                 month = '*',
                 week_day = '*',
