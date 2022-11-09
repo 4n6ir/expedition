@@ -181,28 +181,6 @@ class ExpeditionStack(Stack):
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions = [
-                    'kms:Decrypt'
-                ],
-                resources = [
-                    'arn:aws:kms:'+region+':*:key/*'
-                ]
-            )
-        )
-
-        role.add_to_policy(
-            _iam.PolicyStatement(
-                actions = [
-                    'organizations:DescribeOrganization'
-                ],
-                resources = [
-                    '*'
-                ]
-            )
-        )
-
-        role.add_to_policy(
-            _iam.PolicyStatement(
-                actions = [
                     'ssm:GetParameter'
                 ],
                 resources = [
@@ -238,32 +216,24 @@ class ExpeditionStack(Stack):
         role.add_to_policy(
             _iam.PolicyStatement(
                 actions = [
-                    'secretsmanager:GetSecretValue'
-                ],
-                resources = [
-                    'arn:aws:secretsmanager:'+region+':*:secret:expedition*'
-                ]
-            )
-        )
-
-        role.add_to_policy(
-            _iam.PolicyStatement(
-                actions = [
-                    'sts:AssumeRole'
-                ],
-                resources = [
-                    'arn:aws:iam::*:role/expedition'
-                ]
-            )
-        )
-
-        role.add_to_policy(
-            _iam.PolicyStatement(
-                actions = [
                     'securityhub:BatchImportFindings'
                 ],
                 resources = [
                     'arn:aws:securityhub:'+region+':'+account+':product/'+account+'/default'
+                ]
+            )
+        )
+
+        role.add_to_policy(
+            _iam.PolicyStatement(
+                actions = [
+                    'cloudtrail:GetQueryResults',
+                    'cloudtrail:ListEventDataStores',
+                    'cloudtrail:ListTags',
+                    'cloudtrail:StartQuery'
+                ],
+                resources = [
+                    '*'
                 ]
             )
         )

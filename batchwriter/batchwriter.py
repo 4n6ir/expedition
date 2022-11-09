@@ -25,9 +25,7 @@ def actions(item, sort, table, time):
 def handler(event, context):
 
     data = event['event']['Data']
-    extid = event['event']['ExtId']
     query = event['event']['Query']
-    role = event['event']['Role']
     sort = event['event']['Sort']
     state = event['event']['State']
     step = event['event']['Step']
@@ -37,21 +35,7 @@ def handler(event, context):
     
     limit = 'NO'
 
-    sts_client = boto3.client('sts')
-
-    assumed_role = sts_client.assume_role(
-        RoleArn = role,
-        RoleSessionName = 'expedition',
-        DurationSeconds = 900,
-        ExternalId = extid
-    )
-
-    cloudtrail_client = boto3.client(
-        'cloudtrail',
-        aws_access_key_id = assumed_role['Credentials']['AccessKeyId'],
-        aws_secret_access_key = assumed_role['Credentials']['SecretAccessKey'],
-        aws_session_token = assumed_role['Credentials']['SessionToken']
-    )
+    cloudtrail_client = boto3.client('cloudtrail')
 
     if state == 'START':
         result = cloudtrail_client.get_query_results(
@@ -94,9 +78,7 @@ def handler(event, context):
     
     event = {}
     event['Data'] = data
-    event['ExtId'] = extid
     event['Query'] = query
-    event['Role'] = role
     event['Sort'] = sort
     event['State'] = state
     event['Step'] = step
