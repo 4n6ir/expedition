@@ -1,6 +1,8 @@
 # expedition
 
-CloudTrail Lake configuration happens in the management account to enable logging for all accounts in the organization. Apply the ```expedition``` tag to identify the event data store to be monitored. The permissions bundle also needs to be deployed in the management account. Create a new account or pick a secured account with alternate contacts configured for the **Expedition** deployment.
+CloudTrail Lake configuration happens in the management or, preferably, the delegated administrator account to enable logging for the entire organization. Apply the ```expedition``` tag to identify the event data store to be monitored. For additional details, please check out the blog post.
+
+https://4n6ir.com/2022/08/16/cloudtrail-principles-for-success.html
 
 ### Register Delegated Administrator
 
