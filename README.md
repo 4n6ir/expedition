@@ -1,6 +1,6 @@
 # expedition
 
-CloudTrail Lake configuration happens in the management or, preferably, the delegated administrator account to enable logging for the entire organization. Apply the ```expedition``` tag to identify the event data store to be monitored. 
+CloudTrail Lake configuration happens in the management or, preferably, the delegated administrator account to enable logging for the entire organization. Apply the ```Expedition``` tag to identify the event data store to be monitored. 
 
 For additional details, please check out the blog post:
 
